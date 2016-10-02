@@ -18,10 +18,10 @@ process.stdout.on('resize', () => {
   HEIGHT = process.stdout.rows;
 });
 
-const formatTime = (a,b) => {
-  const t = moment(b.diff(a));
+const formatTime = (a, b) => {
+  const time = moment(b.diff(a));
 
-  return t.format('mm:ss');
+  return time.format('mm:ss');
 };
 
 const render = (time, color) => {
@@ -30,9 +30,7 @@ const render = (time, color) => {
     clear();
     process.stdout.write('\r\n');
     util.puts(color === 'red' ? art.red : art.green);
-    asciimo.write(time, FONT, (art) => {
-
-    });
+    asciimo.write(time, FONT, (art) => {});
   });
 };
 
@@ -46,12 +44,13 @@ const parseArgs = (idx, def) => {
 
 // -----------------------------------------------------
 
-let POMODORO  = Number(parseArgs(0, 25)); // m
-let BREAK     = Number(parseArgs(1, 5));  // m
-let FONT = parseArgs(2, 'Colossal');
+let POMODORO   = Number(parseArgs(0, 25)); // pomodoro
+let BREAK      = Number(parseArgs(1, 5));  // break
+let LONG_BREAK = Number(parseArgs(2, 30)); // long break
+let FONT       = parseArgs(3, 'Colossal');
 
 // -----------------------------------------------------
-let pend, bend;
+let pomodoroEnd, breakEnd, pomodorosStarted = 0;
 
 const buildNotification = message => {
   return {
@@ -61,12 +60,18 @@ const buildNotification = message => {
 };
 
 const startPomodoro = () => {
-  pend = moment().add(POMODORO, 'm');
-  bend = moment().add(POMODORO + BREAK, 'm');
+  pomodorosStarted++;
+  pomodoroEnd = moment().add(POMODORO, 'm');
+
+  if (pomodorosStarted % 4 !== 0) {
+    breakEnd = moment().add(POMODORO + BREAK, 'm');
+  } else {
+    breakEnd = moment().add(POMODORO + LONG_BREAK, 'm');
+  }
 
   const now = moment();
-  setTimeout(() => notifier.notify(buildNotification('end of POMODORO\nstarting BREAK')), pend.diff(now)).unref();
-  setTimeout(() => notifier.notify(buildNotification('end of BREAK\nstarting POMODORO')), bend.diff(now)).unref();
+  setTimeout(() => notifier.notify(buildNotification('end of POMODORO\nstarting BREAK')), pomodoroEnd.diff(now)).unref();
+  setTimeout(() => notifier.notify(buildNotification('end of BREAK\nstarting POMODORO')), breakEnd.diff(now)).unref();
 }
 
 startPomodoro();
@@ -74,14 +79,14 @@ startPomodoro();
 const timer = setInterval(() => {
   const now = moment();
 
-  if (now.isBefore(pend)) {
+  if (now.isBefore(pomodoroEnd)) {
     render(
-        formatTime(now, pend),
+        formatTime(now, pomodoroEnd),
         'red'
     );
-  } else if(now.isBefore(bend)) {
+  } else if(now.isBefore(breakEnd)) {
     render(
-        formatTime(now, bend),
+        formatTime(now, breakEnd),
         'green'
     );
   } else {
